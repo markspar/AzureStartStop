@@ -10,7 +10,7 @@ Create variables to apply default values for the runbook:
   Azurestartstop Exclude: Environment tags to EXCLUDE (e.g. PROD) to avoid impacting some machines even if accidentally tagged with shutdown schedules
   Azurestartstop Include: Environment tags to include (not used, exclude option can be swapped to include if desired)
   Azurestartstop Subscriptions: subscription IDs (comma-delimited) to use
-  Azurestartstop TimeZone: timezone other than UTC to use (e.g. Eastern Time Zone)
+  Azurestartstop TimeZone: timezone to use (e.g. Eastern Standard Time, UTC, etc.) - see get-date -listavailable, use the Id
 Put tags on each VM with the schedule desired:
   Azurestartstop: <DAY><STARTHOUR><STOPHOUR>
     A (all days of week), B (weekdays), C (weekend), MTWHFSU for specific days of the week, always using double digit hours, military time
