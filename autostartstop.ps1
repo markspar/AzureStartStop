@@ -29,7 +29,7 @@
 	Enter as a command-delimited list of IDs (e.g. aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa,bbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb)
 
     PARAMETER tz
-    The name of the time zone you want to use. Run 'Get-TimeZone -ListAvailable' to get available timezone ID's.  Defaults to UTC.
+    The ID of the time zone you want to use. Run 'Get-TimeZone -ListAvailable' to get available timezone ID's.  Defaults to UTC.
 	This is important as administrators and VMs can be running in many time zones.  To ensure the proper schedule is followed, using UTC values
 	is suggested for global companies.
 
@@ -66,7 +66,7 @@ param(
     [parameter(Mandatory = $false)]
     [String] $tz = "Use *AutoStartStop TimeZone* Variable Value",
     [parameter(Mandatory = $false)]
-    [bool]$Simulate = $true,
+    [bool]$Simulate = $false,
     [parameter(Mandatory = $false)]
     [bool]$Deallocate = $false,
     [parameter(Mandatory = $false)]
@@ -75,7 +75,7 @@ param(
     [String]$EnvironmentInclude = "Use *AutoStartStop Include* Variable Value"
 )
 
-$VERSION = "1.0"
+$VERSION = "1.1"
 $script:DoNotStart = $false
 
 # Main runbook content
@@ -85,33 +85,11 @@ try {
     # Retrieve time zone name from variable asset if not specified
     if ($tz -eq "Use *AutoStartStop TimeZone* Variable Value") {
         $tz = Get-AutomationVariable -Name "AutoStartStop TimeZone"
-        if ($tz.length -gt 0) {
-            Write-Output "Specified time zone: [$tz]"
-        }
-        else {
-            #throw "No time zone was specified, and no variable asset with name 'Default Time Zone' was found. Either specify a time zone or define the default using a variable setting"
-            Write-Output "No time zone was specified, and no variable asset with name 'AutoStartStop TimeZone' was found, will use UTC"
-            $tz = 'UTC'
-        }
     }
-
-	# Get current time UTC, get TZ ID, convert UTC to TZ (there are simpler ways to do this)
-    $tempTime = (Get-Date).ToUniversalTime()
-    $tzEST = [System.TimeZoneInfo]::FindSystemTimeZoneById($tz)
-    $CurrentTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($tempTime, $tzEST)
-	$day = $currentTime.DayOfWeek.ToString()
-	$day = $day.ToUpper()
-	$hour = $currentTime.Hour
-
-    Write-Output "Runbook started. Version: $VERSION"
-    if ($Simulate) {
-        Write-Output "*** Running in SIMULATE mode. No power actions will be taken. ***"
-    }
-    else {
-        Write-Output "*** Running in LIVE mode. Schedules will be enforced. ***"
-    }
-    Write-Output "Current $tz time [$($currentTime.ToString("dddd, yyyy MMM dd HH:mm:ss"))] will be checked against schedules"
-
+	# Get current time in timezone specified
+	$startTime = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date), $tz)
+	$day = ($startTime.DayOfWeek.ToString()).ToUpper()
+	$hour = $startTime.Hour
     # Retrieve Subscription ID(s) from variable asset if not specified
     if ($AzSubscriptionIDs -eq "Use *AutoStartStop Subscriptions* Variable Value") {
         $AzSubscriptionIDs = Get-AutomationVariable -Name "AutoStartStop Subscriptions" -ErrorAction Ignore
@@ -124,9 +102,19 @@ try {
     if ($EnvironmentInclude -eq "Use *AutoStartStop Include* Variable Value") {
         $EnvironmentInclude = Get-AutomationVariable -Name "AutoStartStop Include" -ErrorAction Ignore
     }
+
+    Write-Output "Runbook started. Version: $VERSION"
+	Write-Output "Start time $($startTime) (Time Zone $($TZ))"
+	Write-Output "Day: $($day), Hour: $($hour)"
     Write-Output "Subscription IDs: [$AzSubscriptionIDs]"
 	Write-Output "Environment tags to exclude: $($EnvironmentExclude)"
 	Write-Output "Environment tags to include: $($EnvironmentInclude)"
+    if ($Simulate) {
+        Write-Output "*** Running in SIMULATE mode. No power actions will be taken. ***"
+    }
+    else {
+        Write-Output "*** Running in LIVE mode. Schedules will be enforced. ***"
+    }
 
 	$AzIDs = $AzSubscriptionIDs.Split(",")
 	foreach ($AzID in $AzIDs) {
@@ -223,7 +211,6 @@ catch {
     throw "Unexpected exception: $errorMessage at $line"
 }
 finally {
-    $tempTime = (Get-Date).ToUniversalTime()
-    $EndTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($tempTime, $tzEST)
-    Write-Output "Runbook finished (Duration: $(("{0:hh\:mm\:ss}" -f ($EndTime - $currentTime))))"
+    $EndTime = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date), $tz)
+    Write-Output "Runbook finished (Duration: $(("{0:hh\:mm\:ss}" -f ($EndTime - $startTime))))"
 }
