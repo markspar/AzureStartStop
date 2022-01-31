@@ -1,5 +1,10 @@
 # AzureStartStop
-Automates VM start and stop based on schedule tokens in VM tags
+Automates VM start and stop based on schedule tokens in VM tags.
+
+The runbook triggers a shutdown on the day/hour a machine is scheduled, and the same for the startup schedule.
+It DOES NOT enforce the powered off or powered on period between the shutdown time and startup time; 5 minutes after a shutdown, a person
+or process can turn it back on and it will stay on. The only exception to that are the all-day tags for schedules, those will be enforced every
+time the runbook is fired.
 
 ## Setup
 * Ensure you have a managed identity (ideally system) that is granted VM contributor (or scaled down to just the rights to read and start/stop VMs)
@@ -39,8 +44,8 @@ AzureDiagnostics
  ## Version 1.1
 Updated to cleanup timezone info
 
- Still needs:
-1. Needs resource group tag reading (allows tagging an RG for Environment or azurestartstop schedule token
-2. Needs more robust error handling, especially on binding to subscriptions and reading runbook variables
+ Future Improvements:
+1. Needs more robust error handling, especially on binding to subscriptions and reading runbook variables
+2. Needs perf testing to see if parallel jobs should be designed for in the case of multiple large subscriptions
 3. Needs a flag for include/exclude tag reading (or simply check if one is null and another is not, use that one)
-4. Needs perf testing to see if parallel jobs should be designed for in the case of multiple large subscriptions
+4. Needs resource group tag reading (allows tagging an RG for Environment or azurestartstop schedule token
