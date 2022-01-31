@@ -19,7 +19,16 @@ in the subscriptions to be managed.
    * B0619C0000 = Weekdays on at 6am, off at 7pm, Weekends off all day
    * M0019B0619S1214U0000 = Weekdays on at 6am, off at 7pm, except Monday on at midnight and off at 7pm, Saturday on at noon and off at 2pm, Sunday off all day
    * A0619H2424U0000 = All days on at 6am, off at 7pm, except Tursday on all day and Sunday off all day
-   * Apply to a resource group or the VM specifically, VM specific will take precedence.
+   * Apply to the VM
 * Environment: <STRING>
    * Typically used for marking assets as PROD, DEV, TEST, QA, STAGING.
-   * Apply to a resource group or the VM specifically, VM specific will take precedence.
+   * Apply to the VM
+
+ ## Version 1.1
+Updated to cleanup timezone info
+
+ Still needs:
+1. Needs resource group tag reading (allows tagging an RG for Environment or azurestartstop schedule token
+2. Needs more robust error handling, especially on binding to subscriptions and reading runbook variables
+3. Needs a flag for include/exclude tag reading (or simply check if one is null and another is not, use that one)
+4. Needs perf testing to see if parallel jobs should be designed for in the case of multiple large subscriptions
