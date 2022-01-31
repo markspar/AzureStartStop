@@ -33,6 +33,8 @@ AzureDiagnostics
 | where ResourceProvider == "MICROSOFT.AUTOMATION" and Category == "JobLogs" and RunbookName_s == "AutoShutdownSchedule" and ResultType == "Failed"
 | project TimeGenerated, Resource, RunbookName_s, ResultType, JobId_g
 ```
+ * The JobId_g can be used to find the specific job in the runbook job list (enter quid in the search query), the specific errors can be found in the error entries.
+ ![image](https://user-images.githubusercontent.com/31252279/151740702-b9f6410b-ffe4-47b7-9bbb-a57047c257f7.png)
  
  ## Version 1.1
 Updated to cleanup timezone info
