@@ -24,6 +24,16 @@ in the subscriptions to be managed.
    * Typically used for marking assets as PROD, DEV, TEST, QA, STAGING.
    * Apply to the VM
 
+## Logging
+ * Enable joblogs diagnostic logging for the azure automation account with the autostopstart runbook, log to an azure log analytics workspace
+ * A sample log query will show all failed jobs in the last 24 hours.  An alert rule can be created to trigger e-mails based on this query.
+```
+AzureDiagnostics
+| where TimeGenerated > ago(24h)
+| where ResourceProvider == "MICROSOFT.AUTOMATION" and Category == "JobLogs" and RunbookName_s == "AutoShutdownSchedule" and ResultType == "Failed"
+| project TimeGenerated, Resource, RunbookName_s, ResultType, JobId_g
+```
+ 
  ## Version 1.1
 Updated to cleanup timezone info
 
