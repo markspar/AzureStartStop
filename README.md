@@ -41,8 +41,8 @@ AzureDiagnostics
  * The JobId_g can be used to find the specific job in the runbook job list (enter quid in the search query), the specific errors can be found in the error entries.
  ![image](https://user-images.githubusercontent.com/31252279/151740702-b9f6410b-ffe4-47b7-9bbb-a57047c257f7.png)
  
- ## Version 1.1
-Updated to cleanup timezone info
+ ## Version 1.2
+Updated to add debug flag (set to TRUE to enable), fixed issue with stop/start requests not being issued unless 0000 or 2424 code was used.
 
  Future Improvements:
 1. Needs more robust error handling, especially on binding to subscriptions and reading runbook variables
