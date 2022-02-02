@@ -48,6 +48,9 @@
 
 	PARAMETER EnvironmentInclude
 	If non-null, will skip any VM with the Environment tag set to these values
+
+	PARAMETER Debug
+	If $true, debug-level of logging will be output
     
 .PROJECTURI https://github.com/markspar/autostartstop
 
@@ -75,7 +78,7 @@ param(
     [parameter(Mandatory = $false)]
     [String]$EnvironmentInclude = "Use *AutoStartStop Include* Variable Value",
     [parameter(Mandatory = $false)]
-    [String]$Debug = $false
+    [bool]$DebugLogs = $false
 )
 
 $VERSION = "1.2"
@@ -108,31 +111,25 @@ try {
 
     Write-Output "Runbook started. Version: $VERSION"
 	Write-Output "Start time $($startTime) (Time Zone $($TZ))"
-	Write-Output "Day: $($day), Hour: $($hour)"
     Write-Output "Subscription IDs: [$AzSubscriptionIDs]"
 	Write-Output "Environment tags to exclude: $($EnvironmentExclude)"
 	Write-Output "Environment tags to include: $($EnvironmentInclude)"
-    if ($Simulate) {
-        Write-Output "*** Running in SIMULATE mode. No power actions will be taken. ***"
-    }
-    else {
-        Write-Output "*** Running in LIVE mode. Schedules will be enforced. ***"
-    }
-	if ($debug) {
+    if ($Simulate -eq $true) { Write-Output "*** Running in SIMULATE mode. No power actions will be taken. ***" }
+    else { Write-Output "*** Running in LIVE mode. Schedules will be enforced. ***" }
+	if ($DebugLogs -eq $true) {
 		Write-Output "Debug level of logging enabled"
+		Write-Output "Day/Time per timezone setting. Day: $($day), Hour: $($hour)"
 	}
 
 	$AzIDs = $AzSubscriptionIDs.Split(",")
 	foreach ($AzID in $AzIDs) {
 		Write-Output "Processing Subscription ID: [$AzId]"
 		Connect-AzAccount -Identity -Subscription $AzId > $null
-		if ($debug) { Write-Output "Authenticated" }
+		if ($DebugLogs -eq $true) { Write-Output " Authenticated" }
 		Set-AzContext -SubscriptionId $AzId > $null
-		if ($debug) { Write-Output "Context set" }
+		if ($DebugLogs -eq $true) { Write-Output " Context set" }
 		$CurrentSub = (Get-AzContext).Subscription.Id
-		If ($CurrentSub -ne $AzID) {
-			Throw "Could not switch to SubscriptionID: $AzID"
-		}
+		If ($CurrentSub -ne $AzID) { Throw "Could not switch to SubscriptionID: $AzID" }
 
 		# maybe add filter for include/exclude of machines in specific resource groups?
 		# Get a list of all virtual machines in subscription, excluding some environment tags
@@ -140,16 +137,15 @@ try {
 		# Get a list of all virtual machines in subscription, including only some environment tags
 		#$vms = Get-AzVM -Status | Where-Object {(($_.tags.Autostartstop -ne $null) -and ($_.tags.Environment -in $EnvironmentInclude))} | Sort-Object Name
 
-		Write-Output "Processing [$($vms.Count)] virtual machines found in subscription"
+		Write-Output " Processing [$($vms.Count)] virtual machines found in subscription"
 		foreach ($vm in $vms) {
-			Write-Output "Processing VM - $($vm.Name)"
+			Write-Output " Processing VM - $($vm.Name)"
 			$schedule = $vm.tags.Autostartstop
 			$schedule = $schedule.ToUpper()
-			if ($debug) {
-				Write-Output "PowerState - $($vm.PowerState)"
-				Write-Output "Environment - $($vm.tags.Environment)"
-				Write-Output "Autostartstop value - $($schedule)"
-				Write-Output "Current day (by TZ) - $($day)"
+			if ($DebugLogs -eq $true) {
+				Write-Output "  PowerState - $($vm.PowerState)"
+				Write-Output "  Environment - $($vm.tags.Environment)"
+				Write-Output "  Autostartstop value - $($schedule)"
 			}
 
 			$dayfound = $null
@@ -163,61 +159,64 @@ try {
 				"SUNDAY" {if ($schedule.contains("U")){$dayfound="U"}}
 			}
 			if ($dayfound -ne $null){
-				if ($debug) { Write-Output "Specific day schedule matched - using specific day" }
+				if ($DebugLogs -eq $true) { Write-Output "  Specific day schedule matched - using specific day" }
 			}
 			elseif (($day -in @('MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY')) -and ($schedule.contains("B"))){
 				$dayfound="B"
-				if ($debug) { Write-Output "Weekday schedule match and no more specific schedules matched - using weekday" }
+				if ($DebugLogs -eq $true) { Write-Output "  Weekday schedule match and no more specific schedules matched - using weekday" }
 			}
 			elseif (($day -in @('SATURDAY','SUNDAY')) -and ($schedule.contains("C"))){
 				$dayfound="C"
-				if ($debug) { Write-Output "Weekend schedule match and no more specific schedules matched - using weekend" }
+				if ($DebugLogs -eq $true) { Write-Output "  Weekend schedule match and no more specific schedules matched - using weekend" }
 			}
 			elseif ($schedule.contains("A")){
 				$dayfound="A"
-				if ($debug) { Write-Output "All days schedule match and no more specific schedules matched - using all day" }
+				if ($DebugLogs -eq $true) { Write-Output "  All days schedule match and no more specific schedules matched - using all day" }
 			}
 
-			if ($debug) { Write-Output "Schedule token match for $($day) was $($dayfound)" }
+			if ($DebugLogs -eq $true) { Write-Output "  Schedule token match for $($day) was $($dayfound)" }
 
 			$starthour = $schedule.substring($schedule.indexof($dayfound)+1,2)
 			$stophour = $schedule.substring($schedule.indexof($dayfound)+3,2)
-			# $dostop = $false
-			# $dostart = $false
 
-			if ($debug) {
-				Write-Output "VM schedule for $($dayfound) has start Hour - $($starthour)"
-				Write-Output "VM schedule for $($dayfound) has start Hour - $($stophour)"
+			if ($DebugLogs -eq $true) {
+				Write-Output "  VM schedule for $($dayfound) has start Hour - $($starthour)"
+				Write-Output "  VM schedule for $($dayfound) has stop Hour - $($stophour)"
 			}
 
 			#check for special hours - 0000 = always off, 2424 = always on
 			if (($starthour -eq "00") -and ($stophour -eq "00")){
 				$stophour = $hour
-				# $dostop=$true
-				# $dostart=$false
-				if ($debug) { Write-Output "0000 code found (off all day) - will enforce stopped state" }
+				if ($DebugLogs -eq $true) { Write-Output "  0000 code found (off all day) - will enforce stopped state" }
 			}
 			elseif (($starthour -eq "24") -and ($stophour -eq "24")){
 				$starthour = $hour
-				# $dostart=$true
-				# $dostop=$false
-				if ($debug) { Write-Output "2424 code found (on all day) - will enforce started state" }
+				if ($DebugLogs -eq $true) { Write-Output "  2424 code found (on all day) - will enforce started state" }
 			}
 
 			# DO THE STOP/START OF VMS
 			# check environment tag for excluded - if so, set flag for excluded
 			# check environment tag for included - if not, set flag for excluded
-			if (($hour -eq $stophour) -and ($vm.PowerState -eq "VM Running") -and ($simulate -eq $false)){
-			    Write-Output "Stop VM - $($vm.Name)"
-				Stop-AzVM -Name $vm.Name -ResourceGroupName $vm.ResourceGroupName -Confirm:$false -Force -NoWait > $null
+			if (($hour -eq $starthour) -and ($vm.PowerState -ne "VM Running")){
+				if ($Simulate -eq $false) {
+			    	Write-Output "  Start VM - $($vm.Name)"
+					Start-AzVM -Name $vm.Name -ResourceGroupName $vm.ResourceGroupName -NoWait > $null
+				}
+				elseif ($DebugLogs -eq $true) {
+					Write-Output "  Simulate mode - skipping VM start for $($vm.name)"
+				}
 			}
-			elseif (($hour -eq $starthour) -and ($vm.PowerState -ne "VM Running") -and ($simulate -eq $false)){
-			    Write-Output "Start VM - $($vm.Name)"
-				Start-AzVM -Name $vm.Name -ResourceGroupName $vm.ResourceGroupName -NoWait > $null
+			elseif (($hour -eq $stophour) -and ($vm.PowerState -eq "VM Running")){
+   				if ($Simulate -eq $false) {
+					Write-Output "  Stop VM - $($vm.Name)"
+					Stop-AzVM -Name $vm.Name -ResourceGroupName $vm.ResourceGroupName -Confirm:$false -Force -NoWait > $null
+				}
+				elseif ($DebugLogs -eq $true) {
+					Write-Output "  Simulate mode - skipping VM stop for $($vm.name)"
+				}
 			}
-
 		} #foreach vm
-		Write-Output "Finished processing subscription"
+		Write-Output " Finished processing subscription"
 	} # foreach azsubid
     Write-Output "Finished processing virtual machine schedules"
 } # try
