@@ -153,7 +153,7 @@ try {
 				"MONDAY" {if ($schedule.contains("M")){$dayfound="M"}}
 				"TUESDAY" {if ($schedule.contains("T")){$dayfound="T"}}
 				"WEDNESDAY" {if ($schedule.contains("W")){$dayfound="W"}}
-				"THURSDAY" {if ($schedule.contains("U")){$dayfound="U"}}
+				"THURSDAY" {if ($schedule.contains("H")){$dayfound="H"}}
 				"FRIDAY" {if ($schedule.contains("F")){$dayfound="F"}}
 				"SATURDAY" {if ($schedule.contains("S")){$dayfound="S"}}
 				"SUNDAY" {if ($schedule.contains("U")){$dayfound="U"}}
