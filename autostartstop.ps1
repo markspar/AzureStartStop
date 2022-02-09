@@ -15,15 +15,22 @@
 	authenticate with a managed identity granted specific VM rights on the subscriptions to be managed.
 
     Valid tags:
-	<day tag><shutdown hour><startup hour>
-	A - all days of week
-	B - all weekdays
-	C - all weekends
+    	<day tag><shutdown hour><startup hour>
+	
+	In order of precedence:
+	D<2-digit days of month> - specific days of month
 	MTWHFSU - days of week, Monday - Sunday
+	B - all weekdays, C - all weekends
+	A - all days of week
+	
 	Special hour codes - 0000 for shutdown all day, 2424 for leave on all day
+	
 	These can be combined as needed, with more specific days taking precedence over more generic schedules.
 	So, an all week tag would be overridden by a weekday tag, which would in turn be overridden by a specific day tag.
 	A0618S0000M2424 would have the VM stay off all saturday, on all Monday, and otherwise turn on at 6am and off at 6pm.
+	The D tag is special, used to make a specific day of the month have a schedule: 
+		D0107132424 would mean on the 1st, 7th, and 13th of the month, keep the machine on all day
+		This is particularly useful for change windows/operational freezes/etc.
 
     PARAMETER AzSubscriptionIDs
     The Azure subscription IDs to operate against. By default, it will use the Variable setting named "AutoStartStop Subscriptions"
@@ -81,7 +88,7 @@ param(
     [bool]$DebugLogs = $false
 )
 
-$VERSION = "1.2"
+$VERSION = "1.3"
 $script:DoNotStart = $false
 
 # Main runbook content
@@ -149,36 +156,57 @@ try {
 			}
 
 			$dayfound = $null
-			switch($day){
-				"MONDAY" {if ($schedule.contains("M")){$dayfound="M"}}
-				"TUESDAY" {if ($schedule.contains("T")){$dayfound="T"}}
-				"WEDNESDAY" {if ($schedule.contains("W")){$dayfound="W"}}
-				"THURSDAY" {if ($schedule.contains("H")){$dayfound="H"}}
-				"FRIDAY" {if ($schedule.contains("F")){$dayfound="F"}}
-				"SATURDAY" {if ($schedule.contains("S")){$dayfound="S"}}
-				"SUNDAY" {if ($schedule.contains("U")){$dayfound="U"}}
+			
+			#template for new token parsing
+			#if ($dayfound -eq $null) {
+			# 	insert new logic for parsing schedule token here
+			#}
+			
+			# specific day of week schedule - if the day matches any specific day tag that is found, match
+			if ($dayfound -eq $null) {
+				switch($day){
+					"MONDAY" {if ($schedule.contains("M")){$dayfound="M"}}
+					"TUESDAY" {if ($schedule.contains("T")){$dayfound="T"}}
+					"WEDNESDAY" {if ($schedule.contains("W")){$dayfound="W"}}
+					"THURSDAY" {if ($schedule.contains("H")){$dayfound="H"}}
+					"FRIDAY" {if ($schedule.contains("F")){$dayfound="F"}}
+					"SATURDAY" {if ($schedule.contains("S")){$dayfound="S"}}
+					"SUNDAY" {if ($schedule.contains("U")){$dayfound="U"}}
+				}
+				if ($dayfound -ne $null) {
+					if ($DebugLogs -eq $true) { Write-Output "  Specific day schedule matched - using specific day" }
+				}
 			}
-			if ($dayfound -ne $null){
-				if ($DebugLogs -eq $true) { Write-Output "  Specific day schedule matched - using specific day" }
+			
+			# weekday schedule - if today is Mon-Fri, and a B schedule is found, match
+			if ($dayfound -eq $null) {
+				if (($day -in @('MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY')) -and ($schedule.contains("B"))){
+					$dayfound="B"
+					if ($DebugLogs -eq $true) { Write-Output "  Weekday schedule match and no more specific schedules matched - using weekday" }
+				}
 			}
-			elseif (($day -in @('MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY')) -and ($schedule.contains("B"))){
-				$dayfound="B"
-				if ($DebugLogs -eq $true) { Write-Output "  Weekday schedule match and no more specific schedules matched - using weekday" }
+			
+			# weekend schedule - if today is saturday or sunday, and a C schedule is found, match
+			if ($dayfound -eq $null) {
+				if (($day -in @('SATURDAY','SUNDAY')) -and ($schedule.contains("C"))){
+					$dayfound="C"
+					if ($DebugLogs -eq $true) { Write-Output "  Weekend schedule match and no more specific schedules matched - using weekend" }
+				}
 			}
-			elseif (($day -in @('SATURDAY','SUNDAY')) -and ($schedule.contains("C"))){
-				$dayfound="C"
-				if ($DebugLogs -eq $true) { Write-Output "  Weekend schedule match and no more specific schedules matched - using weekend" }
-			}
-			elseif ($schedule.contains("A")){
-				$dayfound="A"
-				if ($DebugLogs -eq $true) { Write-Output "  All days schedule match and no more specific schedules matched - using all day" }
+			
+			# all week schedule - any A found = match at this point
+			if ($dayfound -eq $null) {
+				if ($schedule.contains("A")) {
+					$dayfound="A"
+					if ($DebugLogs -eq $true) { Write-Output "  All days schedule match and no more specific schedules matched - using all day" }
+				}
 			}
 
 			if ($DebugLogs -eq $true) { Write-Output "  Schedule token match for $($day) was $($dayfound)" }
 
+			# get start and stop hour as next 4 digits in schedule token after day found
 			$starthour = $schedule.substring($schedule.indexof($dayfound)+1,2)
 			$stophour = $schedule.substring($schedule.indexof($dayfound)+3,2)
-
 			if ($DebugLogs -eq $true) {
 				Write-Output "  VM schedule for $($dayfound) has start Hour - $($starthour)"
 				Write-Output "  VM schedule for $($dayfound) has stop Hour - $($stophour)"
@@ -195,17 +223,19 @@ try {
 			}
 
 			# DO THE STOP/START OF VMS
-			# check environment tag for excluded - if so, set flag for excluded
-			# check environment tag for included - if not, set flag for excluded
+			# if simulate is true, log what you would have done but don't do it
+			# if machine already in proper state, don't do anything
+			# if hour = start hour and vm is not running, start it
 			if (($hour -eq $starthour) -and ($vm.PowerState -ne "VM Running")){
 				if ($Simulate -eq $false) {
-			    	Write-Output "  Start VM - $($vm.Name)"
+			    		Write-Output "  Start VM - $($vm.Name)"
 					Start-AzVM -Name $vm.Name -ResourceGroupName $vm.ResourceGroupName -NoWait > $null
 				}
 				elseif ($DebugLogs -eq $true) {
 					Write-Output "  Simulate mode - skipping VM start for $($vm.name)"
 				}
 			}
+			# if hour = stop hour and vm is running, stop it
 			elseif (($hour -eq $stophour) -and ($vm.PowerState -eq "VM Running")){
    				if ($Simulate -eq $false) {
 					Write-Output "  Stop VM - $($vm.Name)"
