@@ -18,7 +18,7 @@
     	<day tag><shutdown hour><startup hour>
 	
 	In order of precedence:
-	D<2-digit days of month> - specific days of month
+	D<stop day><start day> - range of specific days of month to be off
 	MTWHFSU - days of week, Monday - Sunday
 	B - all weekdays, C - all weekends
 	A - all days of week
@@ -28,8 +28,9 @@
 	These can be combined as needed, with more specific days taking precedence over more generic schedules.
 	So, an all week tag would be overridden by a weekday tag, which would in turn be overridden by a specific day tag.
 	A0618S0000M2424 would have the VM stay off all saturday, on all Monday, and otherwise turn on at 6am and off at 6pm.
-	The D tag is special, used to make a specific day of the month have a schedule: 
-		D0107132424 would mean on the 1st, 7th, and 13th of the month, keep the machine on all day
+	The D tag specifies a range of days of the month to be turned off: 
+		D0107 would be off from the 1st day of the month through the 7th (inclusive), but it does not guarantee the machine will turn on at end
+		Usually match this with A/B/C or days of week to ensure proper start days occur as well
 		This is particularly useful for change windows/operational freezes/etc.
 
     PARAMETER AzSubscriptionIDs
@@ -103,6 +104,7 @@ try {
 	$startTime = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date), $tz)
 	$day = ($startTime.DayOfWeek.ToString()).ToUpper()
 	$hour = $startTime.Hour
+	$dayofmonth = $starttime.Day
     # Retrieve Subscription ID(s) from variable asset if not specified
     if ($AzSubscriptionIDs -eq "Use *AutoStartStop Subscriptions* Variable Value") {
         $AzSubscriptionIDs = Get-AutomationVariable -Name "AutoStartStop Subscriptions" -ErrorAction Ignore
@@ -140,7 +142,7 @@ try {
 
 		# maybe add filter for include/exclude of machines in specific resource groups?
 		# Get a list of all virtual machines in subscription, excluding some environment tags
-		$vms = Get-AzVM -Status | Where-Object {(($_.tags.Autostartstop -ne $null) -and ($_.tags.Environment -notin $EnvironmentExclude))} | Sort-Object Name
+		$vms = Get-AzVM -Status | Where-Object {(($_.tags.Autostartstop -notin @($null,'')) -and ($_.tags.Environment -notin $EnvironmentExclude))} | Sort-Object Name
 		# Get a list of all virtual machines in subscription, including only some environment tags
 		#$vms = Get-AzVM -Status | Where-Object {(($_.tags.Autostartstop -ne $null) -and ($_.tags.Environment -in $EnvironmentInclude))} | Sort-Object Name
 
@@ -161,7 +163,19 @@ try {
 			#if ($dayfound -eq $null) {
 			# 	insert new logic for parsing schedule token here
 			#}
-			
+
+			# range of days of month to be off - if the day of the month is within the range (inclusive), match
+			if ($dayfound -eq $null) {
+				if ($schedule.contains("D")) {
+					$stopday = $schedule.substring($schedule.indexof("D")+1,2)
+					$startday = $schedule.substring($schedule.indexof("D")+3,2)
+					if (($dayofmonth -ge $stopday) -and ($dayofmonth -le $startday)) {
+						$dayfound="D"
+						if ($DebugLogs -eq $true) { Write-Output "  Day found in day range (D)" }
+					}
+				}
+			}
+
 			# specific day of week schedule - if the day matches any specific day tag that is found, match
 			if ($dayfound -eq $null) {
 				switch($day){
@@ -202,14 +216,23 @@ try {
 				}
 			}
 
-			if ($DebugLogs -eq $true) { Write-Output "  Schedule token match for $($day) was $($dayfound)" }
+			if ($DebugLogs -eq $true) {
+				if ($dayfound -eq "D") { Write-Output "  Schedule token match for $($dayofmonth) was in date range $($stopday)-$($startday)"}
+				else { Write-Output "  Schedule token match for $($day) was $($dayfound)" }
+			}
 
 			# get start and stop hour as next 4 digits in schedule token after day found
-			$starthour = $schedule.substring($schedule.indexof($dayfound)+1,2)
-			$stophour = $schedule.substring($schedule.indexof($dayfound)+3,2)
-			if ($DebugLogs -eq $true) {
-				Write-Output "  VM schedule for $($dayfound) has start Hour - $($starthour)"
-				Write-Output "  VM schedule for $($dayfound) has stop Hour - $($stophour)"
+			if ($dayfound -eq "D") {
+				$stophour = "00"
+				$starthour = "00"
+			}
+			else {
+				$starthour = $schedule.substring($schedule.indexof($dayfound)+1,2)
+				$stophour = $schedule.substring($schedule.indexof($dayfound)+3,2)
+				if ($DebugLogs -eq $true) {
+					Write-Output "  VM schedule for $($dayfound) has start Hour - $($starthour)"
+					Write-Output "  VM schedule for $($dayfound) has stop Hour - $($stophour)"
+				}
 			}
 
 			#check for special hours - 0000 = always off, 2424 = always on
