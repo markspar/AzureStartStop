@@ -18,7 +18,7 @@ in the subscriptions to be managed.
   *  Azurestartstop TimeZone: timezone to use (e.g. Eastern Standard Time, UTC, etc.) - see get-date -listavailable, use the Id
 
 ## Tags
-* Azurestartstop: <DAY><STARTHOUR><STOPHOUR>
+* Azurestartstop: DayStarthourStophour
    * DAY code: D (days of the month range to be turned off), A (all days of week), B (weekdays), C (weekend), MTWHFSU for specific days of the week, day of month range and then most specific takes precedence
    * STARTHOUR and STOPHOUR code: military time (double digit 24 hour clock), with 0000 time code being off all day, 2424 time code being on all day
    * D0910 = turn off on the 9th of the month, stay off until 10th of the month (inclusive)
