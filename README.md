@@ -19,8 +19,10 @@ in the subscriptions to be managed.
 
 ## Tags
 * Azurestartstop: <DAY><STARTHOUR><STOPHOUR>
-   * <DAY> code: A (all days of week), B (weekdays), C (weekend), MTWHFSU for specific days of the week, most specific takes precedence
+   * <DAY> code: D (days of the month range to be turned off), A (all days of week), B (weekdays), C (weekend), MTWHFSU for specific days of the week, day of month range and then most specific takes precedence
    * <STARTHOUR> and <STOPHOUR> code: military time (double digit 24 hour clock), with 0000 time code being off all day, 2424 time code being on all day
+   * D0910 = turn off on the 9th of the month, stay off until 10th of the month (inclusive)
+   * D0910A2424 = turn on 24 hours a day, except days 9 through 10 when it will turn off (inclusive)
    * B0619C0000 = Weekdays on at 6am, off at 7pm, Weekends off all day
    * M0019B0619S1214U0000 = Weekdays on at 6am, off at 7pm, except Monday on at midnight and off at 7pm, Saturday on at noon and off at 2pm, Sunday off all day
    * A0619H2424U0000 = All days on at 6am, off at 7pm, except Tursday on all day and Sunday off all day
@@ -43,6 +45,7 @@ AzureDiagnostics
  
  ## Version 1.3
 Fixed thursday tag issue, added support in code for easier addition of new schedule tokens
+Added support for days of month range (D code)
  
  ## Version 1.2
 Updated to add debug flag (set to TRUE to enable), fixed issue with stop/start requests not being issued unless 0000 or 2424 code was used.
@@ -52,6 +55,4 @@ Updated to add debug flag (set to TRUE to enable), fixed issue with stop/start r
 2. Needs perf testing to see if parallel jobs should be designed for in the case of multiple large subscriptions
 3. Needs a flag for include/exclude tag reading (or simply check if one is null and another is not, use that one)
 4. Needs resource group tag reading (allows tagging an RG for Environment or azurestartstop schedule token
-5. Support specific days of month
-6. Support separate tag with override of normal schedule (easier to maintain, updating regular schedule token is more prone to error, likely requires item 5 above)
  
