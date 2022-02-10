@@ -19,8 +19,8 @@ in the subscriptions to be managed.
 
 ## Tags
 * Azurestartstop: <DAY><STARTHOUR><STOPHOUR>
-   * <DAY> code: D (days of the month range to be turned off), A (all days of week), B (weekdays), C (weekend), MTWHFSU for specific days of the week, day of month range and then most specific takes precedence
-   * <STARTHOUR> and <STOPHOUR> code: military time (double digit 24 hour clock), with 0000 time code being off all day, 2424 time code being on all day
+   * DAY code: D (days of the month range to be turned off), A (all days of week), B (weekdays), C (weekend), MTWHFSU for specific days of the week, day of month range and then most specific takes precedence
+   * STARTHOUR and STOPHOUR code: military time (double digit 24 hour clock), with 0000 time code being off all day, 2424 time code being on all day
    * D0910 = turn off on the 9th of the month, stay off until 10th of the month (inclusive)
    * D0910A2424 = turn on 24 hours a day, except days 9 through 10 when it will turn off (inclusive)
    * B0619C0000 = Weekdays on at 6am, off at 7pm, Weekends off all day
