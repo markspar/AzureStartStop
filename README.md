@@ -27,7 +27,7 @@ in the subscriptions to be managed.
    * M0019B0619S1214U0000 = Weekdays on at 6am, off at 7pm, except Monday on at midnight and off at 7pm, Saturday on at noon and off at 2pm, Sunday off all day
    * A0619H2424U0000 = All days on at 6am, off at 7pm, except Tursday on all day and Sunday off all day
    * Apply to the VM
-* Environment: <STRING>
+* Environment: STRING
    * Typically used for marking assets as PROD, DEV, TEST, QA, STAGING.
    * Apply to the VM
 
