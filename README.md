@@ -46,9 +46,6 @@ AzureDiagnostics
  ## Version 1.3
 Fixed thursday tag issue, added support in code for easier addition of new schedule tokens
 Added support for days of month range (D code)
- 
- ## Version 1.2
-Updated to add debug flag (set to TRUE to enable), fixed issue with stop/start requests not being issued unless 0000 or 2424 code was used.
 
  Future Improvements:
 1. Needs more robust error handling, especially on binding to subscriptions and reading runbook variables
